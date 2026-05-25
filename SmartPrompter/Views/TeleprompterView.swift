@@ -34,9 +34,14 @@ struct TeleprompterView: View {
                 controls
             }
             .statusBarHidden(true)
-            .onAppear {
+            .task {
                 ScriptStore.markUsed(script, in: modelContext)
                 lastTick = Date()
+                // Re-activate smart voice scroll if it was left on when the script was last closed
+                if settings.smartVoiceScroll {
+                    let allowed = await speechScrollController.requestPermissions()
+                    if allowed { speechScrollController.startListening() }
+                }
             }
             .onDisappear {
                 speechScrollController.stopListening()
@@ -172,7 +177,10 @@ struct TeleprompterView: View {
 
         let smartMultiplier: Double
         if settings.smartVoiceScroll, speechScrollController.isListening {
-            smartMultiplier = max(0.6, min(1.6, speechScrollController.estimatedWordsPerMinute / 165))
+            // Scale scroll speed directly to speech pace.
+            // 165 WPM = baseline (1.0×). Clamped to 0–2× so it can fully
+            // stop when silent and at most double speed for fast speakers.
+            smartMultiplier = max(0.0, min(2.0, speechScrollController.estimatedWordsPerMinute / 165))
         } else {
             smartMultiplier = 1
         }

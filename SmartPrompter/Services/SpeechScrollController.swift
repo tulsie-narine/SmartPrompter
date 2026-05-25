@@ -21,15 +21,21 @@ final class SpeechScrollController: ObservableObject {
     private var recognitionTask: SFSpeechRecognitionTask?
     private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
 
-    // WPM tracking — sliding window over the last N seconds
+    // WPM tracking — short rolling window for responsive real-time adjustment
     private var wordTimestamps: [Date] = []
-    private let wpmWindowSeconds: TimeInterval = 20
+    private let wpmWindowSeconds: TimeInterval = 6   // short = reacts quickly to pace changes
     private var lastTranscription: String = ""
+    private var lastWordHeardAt: Date = .distantPast
+
+    // Silence decay — ramps WPM down when you stop speaking
+    private var silenceDecayTask: Task<Void, Never>?
+    private let silenceThresholdSeconds: TimeInterval = 1.5  // pause before decay starts
+    private let decayIntervalMs: UInt64 = 150                // decay tick every 150ms
+    private let decayFactor: Double = 0.88                   // 12% reduction per tick
 
     // MARK: - Public API
 
     func requestPermissions() async -> Bool {
-        // 1. Speech recognition permission
         let speechStatus = await withCheckedContinuation { continuation in
             SFSpeechRecognizer.requestAuthorization { status in
                 continuation.resume(returning: status)
@@ -41,7 +47,6 @@ final class SpeechScrollController: ObservableObject {
             return false
         }
 
-        // 2. Microphone permission (iOS 17+ API)
         let micGranted = await AVAudioApplication.requestRecordPermission()
 
         if micGranted {
@@ -58,7 +63,6 @@ final class SpeechScrollController: ObservableObject {
         guard let recognizer = speechRecognizer, recognizer.isAvailable else { return }
 
         do {
-            // Configure audio session for recording
             let audioSession = AVAudioSession.sharedInstance()
             try audioSession.setCategory(.record, mode: .measurement, options: .duckOthers)
             try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
@@ -71,14 +75,12 @@ final class SpeechScrollController: ObservableObject {
             request.taskHint = .dictation
             recognitionRequest = request
 
-            // Tap the microphone input and feed buffers into the recognizer
             let inputNode = engine.inputNode
             let recordingFormat = inputNode.outputFormat(forBus: 0)
             inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
                 self?.recognitionRequest?.append(buffer)
             }
 
-            // Handle incoming transcription results
             recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
                 guard let self else { return }
 
@@ -88,7 +90,6 @@ final class SpeechScrollController: ObservableObject {
                     }
                 }
 
-                // Apple caps recognition sessions at ~1 minute — restart automatically
                 if error != nil || result?.isFinal == true {
                     Task { @MainActor in
                         self.restartListening()
@@ -102,6 +103,7 @@ final class SpeechScrollController: ObservableObject {
             isListening = true
             wordTimestamps = []
             lastTranscription = ""
+            lastWordHeardAt = .distantPast
 
         } catch {
             isListening = false
@@ -109,6 +111,9 @@ final class SpeechScrollController: ObservableObject {
     }
 
     func stopListening() {
+        silenceDecayTask?.cancel()
+        silenceDecayTask = nil
+
         audioEngine?.inputNode.removeTap(onBus: 0)
         audioEngine?.stop()
         recognitionRequest?.endAudio()
@@ -124,54 +129,97 @@ final class SpeechScrollController: ObservableObject {
         estimatedWordsPerMinute = 0
         wordTimestamps = []
         lastTranscription = ""
+        lastWordHeardAt = .distantPast
     }
 
     // MARK: - Private
 
-    /// Called when the recognizer emits a new partial or final transcription.
-    /// Counts newly-spoken words and updates the rolling WPM estimate.
+    /// Called on every partial/final recognition result.
+    /// Measures pace over a short rolling window and schedules a silence decay
+    /// so the scroll slows naturally when speech stops.
     private func updateWPM(from transcription: String) {
         let newWordCount = countNewWords(current: transcription, previous: lastTranscription)
         lastTranscription = transcription
 
-        let now = Date()
+        guard newWordCount > 0 else { return }
 
-        // Stamp each new word at the current time
+        let now = Date()
+        lastWordHeardAt = now
+
+        // New speech heard — cancel any active silence decay
+        silenceDecayTask?.cancel()
+        silenceDecayTask = nil
+
+        // Stamp the new words
         for _ in 0..<newWordCount {
             wordTimestamps.append(now)
         }
 
-        // Drop timestamps outside the sliding window
+        // Prune anything older than the window
         let cutoff = now.addingTimeInterval(-wpmWindowSeconds)
         wordTimestamps = wordTimestamps.filter { $0 > cutoff }
 
-        // Need at least 3 words and > 1 second of data for a meaningful estimate
-        guard wordTimestamps.count >= 3, let oldest = wordTimestamps.first else { return }
+        // Need at least 2 words and 0.5s of data for a meaningful rate
+        guard wordTimestamps.count >= 2, let oldest = wordTimestamps.first else {
+            scheduleSilenceDecay()
+            return
+        }
         let elapsed = now.timeIntervalSince(oldest)
-        guard elapsed > 1 else { return }
+        guard elapsed >= 0.5 else {
+            scheduleSilenceDecay()
+            return
+        }
 
         let rawWPM = Double(wordTimestamps.count) / elapsed * 60
 
-        // Smooth with exponential moving average to avoid jitter
-        estimatedWordsPerMinute = estimatedWordsPerMinute * 0.6 + rawWPM * 0.4
+        // Aggressive EMA (65% new, 35% old) so pace changes register quickly
+        estimatedWordsPerMinute = estimatedWordsPerMinute * 0.35 + rawWPM * 0.65
+
+        // Watch for the next silence
+        scheduleSilenceDecay()
     }
 
-    /// Returns how many new words appeared between two successive transcription strings.
+    /// Waits for the silence threshold, then decays WPM smoothly toward zero.
+    /// Cancelled immediately when new speech arrives.
+    private func scheduleSilenceDecay() {
+        silenceDecayTask?.cancel()
+        silenceDecayTask = Task { @MainActor in
+            // Wait for the silence threshold before starting decay
+            try? await Task.sleep(for: .seconds(silenceThresholdSeconds))
+            guard !Task.isCancelled else { return }
+
+            // Ramp WPM down gradually — each tick reduces it by decayFactor
+            while !Task.isCancelled && estimatedWordsPerMinute > 1 {
+                try? await Task.sleep(nanoseconds: decayIntervalMs * 1_000_000)
+                guard !Task.isCancelled else { break }
+                estimatedWordsPerMinute *= decayFactor
+            }
+
+            if !Task.isCancelled {
+                estimatedWordsPerMinute = 0
+            }
+        }
+    }
+
     private func countNewWords(current: String, previous: String) -> Int {
         let currentCount = current.split(separator: " ").count
         let previousCount = previous.split(separator: " ").count
         return max(0, currentCount - previousCount)
     }
 
-    /// Apple's on-device recognizer silently ends sessions after ~1 minute.
-    /// Tear down and restart so voice scroll never drops out mid-script.
+    /// Apple caps recognition sessions at ~1 minute. Restart transparently.
     private func restartListening() {
         guard isListening else { return }
-        // Preserve the accumulated WPM so the display doesn't flicker to zero
         let preservedWPM = estimatedWordsPerMinute
+        let preservedDecayTask = silenceDecayTask
+        silenceDecayTask = nil          // prevent stopListening from cancelling it
+
         stopListening()
-        isListening = true          // keep the flag true during the brief restart
+
+        isListening = true
         estimatedWordsPerMinute = preservedWPM
+        silenceDecayTask = preservedDecayTask   // re-attach so decay continues across restart
+
         startListening()
     }
 }
