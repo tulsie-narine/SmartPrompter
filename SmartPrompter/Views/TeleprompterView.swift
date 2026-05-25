@@ -37,7 +37,9 @@ struct TeleprompterView: View {
             .task {
                 ScriptStore.markUsed(script, in: modelContext)
                 lastTick = Date()
-                // Re-activate smart voice scroll if it was left on when the script was last closed
+                // Give the controller the script text for word-level matching
+                speechScrollController.setScript(script.body)
+                // Re-activate smart voice scroll if it was left on when last closed
                 if settings.smartVoiceScroll {
                     let allowed = await speechScrollController.requestPermissions()
                     if allowed { speechScrollController.startListening() }
@@ -59,9 +61,11 @@ struct TeleprompterView: View {
         }
     }
 
+    // MARK: - Prompter text with word highlight
+
     private func prompterText(in geometry: GeometryProxy) -> some View {
         ScrollView(.vertical, showsIndicators: false) {
-            Text(script.body)
+            Text(highlightedBody)
                 .font(.system(size: settings.fontSize, weight: .semibold))
                 .foregroundStyle(settings.fontColor)
                 .multilineTextAlignment(.center)
@@ -78,6 +82,52 @@ struct TeleprompterView: View {
         .allowsHitTesting(false)
     }
 
+    /// Builds the script body as an AttributedString.
+    /// When smart voice scroll is active the next-to-be-spoken word gets a
+    /// white background with black text so it's always easy to track.
+    private var highlightedBody: AttributedString {
+        var str = AttributedString(script.body)
+
+        guard settings.smartVoiceScroll,
+              speechScrollController.isListening,
+              speechScrollController.currentWordIndex < script.body.components(separatedBy: .whitespacesAndNewlines).filter({ !$0.isEmpty }).count,
+              let range = wordRange(at: speechScrollController.currentWordIndex, in: script.body),
+              let attrRange = Range(range, in: str) else {
+            return str
+        }
+
+        str[attrRange].backgroundColor = Color.white
+        str[attrRange].foregroundColor = Color.black
+
+        return str
+    }
+
+    /// Returns the substring range of the Nth whitespace-delimited token in `text`.
+    private func wordRange(at targetIndex: Int, in text: String) -> Range<String.Index>? {
+        var wordCount = 0
+        var i = text.startIndex
+
+        while i < text.endIndex {
+            // Skip whitespace/newlines
+            while i < text.endIndex && text[i].isWhitespace {
+                i = text.index(after: i)
+            }
+            guard i < text.endIndex else { break }
+
+            // Walk to end of token
+            let start = i
+            while i < text.endIndex && !text[i].isWhitespace {
+                i = text.index(after: i)
+            }
+
+            if wordCount == targetIndex { return start..<i }
+            wordCount += 1
+        }
+        return nil
+    }
+
+    // MARK: - Marker line
+
     private var markerLine: some View {
         Rectangle()
             .fill(settings.fontColor.opacity(0.28))
@@ -91,6 +141,8 @@ struct TeleprompterView: View {
             .padding(.horizontal, 24)
             .allowsHitTesting(false)
     }
+
+    // MARK: - Controls
 
     private var controls: some View {
         VStack {
@@ -157,6 +209,8 @@ struct TeleprompterView: View {
         .padding()
     }
 
+    // MARK: - Scroll logic
+
     private func togglePlayback() {
         isPlaying.toggle()
         lastTick = Date()
@@ -175,16 +229,14 @@ struct TeleprompterView: View {
 
         guard isPlaying else { return }
 
-        let smartMultiplier: Double
+        let multiplier: Double
         if settings.smartVoiceScroll, speechScrollController.isListening {
-            // Scale scroll speed directly to speech pace.
-            // 165 WPM = baseline (1.0×). Clamped to 0–2× so it can fully
-            // stop when silent and at most double speed for fast speakers.
-            smartMultiplier = max(0.0, min(2.0, speechScrollController.estimatedWordsPerMinute / 165))
+            // scrollSpeedMultiplier is 0 when silent, ~1 at baseline pace, up to 2 for fast speech
+            multiplier = speechScrollController.scrollSpeedMultiplier
         } else {
-            smartMultiplier = 1
+            multiplier = 1.0
         }
 
-        scrollOffset += CGFloat(settings.scrollSpeed * elapsed * smartMultiplier)
+        scrollOffset += CGFloat(settings.scrollSpeed * elapsed * multiplier)
     }
 }

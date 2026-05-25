@@ -82,10 +82,10 @@ struct SettingsPanelView: View {
 
                         if speechScrollController.isListening {
                             LabeledContent(
-                                "Estimated Pace",
-                                value: speechScrollController.estimatedWordsPerMinute > 0
-                                    ? "\(Int(speechScrollController.estimatedWordsPerMinute)) WPM"
-                                    : "Warming up…"
+                                "Scroll Speed",
+                                value: speechScrollController.scrollSpeedMultiplier > 0.02
+                                    ? String(format: "%.0f%%", speechScrollController.scrollSpeedMultiplier * 100)
+                                    : "Paused — waiting for speech"
                             )
                         }
                     }
