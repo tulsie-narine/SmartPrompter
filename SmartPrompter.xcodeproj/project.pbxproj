@@ -16,6 +16,7 @@
 		AA0000010000000000000007 /* SettingsPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000020000000000000007 /* SettingsPanelView.swift */; };
 		AA0000010000000000000008 /* ScriptStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000020000000000000008 /* ScriptStore.swift */; };
 		AA0000010000000000000009 /* SpeechScrollController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000020000000000000009 /* SpeechScrollController.swift */; };
+		AA0000010000000000000011 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA0000020000000000000011 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -29,6 +30,7 @@
 		AA0000020000000000000008 /* ScriptStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptStore.swift; sourceTree = "<group>"; };
 		AA0000020000000000000009 /* SpeechScrollController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechScrollController.swift; sourceTree = "<group>"; };
 		AA0000020000000000000010 /* SmartPrompter.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SmartPrompter.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA0000020000000000000011 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -54,6 +56,7 @@
 			isa = PBXGroup;
 			children = (
 				AA0000020000000000000001 /* SmartPrompterApp.swift */,
+				AA0000020000000000000011 /* Assets.xcassets */,
 				AA0000040000000000000003 /* Models */,
 				AA0000040000000000000004 /* Views */,
 				AA0000040000000000000005 /* Services */,
@@ -156,6 +159,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AA0000010000000000000011 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -299,8 +303,10 @@
 		AA0000100000000000000003 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QB9HVQGU5M;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = SmartPrompter;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
@@ -317,7 +323,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.smartprompter;
+				PRODUCT_BUNDLE_IDENTIFIER = com.tulsienarine.smartprompter;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -330,8 +336,10 @@
 		AA0000100000000000000004 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QB9HVQGU5M;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = SmartPrompter;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
@@ -348,7 +356,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.smartprompter;
+				PRODUCT_BUNDLE_IDENTIFIER = com.tulsienarine.smartprompter;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;

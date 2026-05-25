@@ -64,9 +64,10 @@ struct TeleprompterView: View {
                 .padding(.horizontal, settings.margins)
                 .padding(.vertical, geometry.size.height * 0.42)
                 .frame(maxWidth: .infinity)
-                .scaleEffect(x: settings.mirrorMode ? -1 : 1, y: 1)
+                .scaleEffect(x: settings.mirrorMode ? -1 : 1, y: settings.flipMode ? -1 : 1)
                 .offset(y: -scrollOffset)
                 .animation(.smooth(duration: 0.2), value: settings.mirrorMode)
+                .animation(.smooth(duration: 0.2), value: settings.flipMode)
         }
         .scrollDisabled(true)
         .allowsHitTesting(false)

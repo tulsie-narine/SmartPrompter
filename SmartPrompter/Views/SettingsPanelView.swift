@@ -60,20 +60,34 @@ struct SettingsPanelView: View {
                 Section("Display") {
                     ColorPicker("Background Color", selection: backgroundColor, supportsOpacity: false)
                     Toggle("Mirror Mode", isOn: setting(\.mirrorMode))
+                    Toggle("Flip Vertical", isOn: setting(\.flipMode))
                     Toggle("Reading Marker", isOn: setting(\.showMarker))
                 }
 
                 Section("Smart Scroll") {
                     Toggle("Smart Voice Scroll", isOn: smartVoiceScroll)
 
-                    LabeledContent("Permission State", value: speechScrollController.permissionState.rawValue)
-                    LabeledContent("Listening", value: speechScrollController.isListening ? "On" : "Off")
+                    if speechScrollController.permissionState == .denied {
+                        Label {
+                            Text("Microphone or speech recognition access was denied. Please enable both in Settings → Privacy.")
+                                .font(.footnote)
+                                .foregroundStyle(.red)
+                        } icon: {
+                            Image(systemName: "mic.slash.fill")
+                                .foregroundStyle(.red)
+                        }
+                    } else {
+                        LabeledContent("Permission State", value: speechScrollController.permissionState.rawValue)
+                        LabeledContent("Listening", value: speechScrollController.isListening ? "On" : "Off")
 
-                    if speechScrollController.isListening {
-                        LabeledContent(
-                            "Estimated Pace",
-                            value: "\(Int(speechScrollController.estimatedWordsPerMinute)) WPM"
-                        )
+                        if speechScrollController.isListening {
+                            LabeledContent(
+                                "Estimated Pace",
+                                value: speechScrollController.estimatedWordsPerMinute > 0
+                                    ? "\(Int(speechScrollController.estimatedWordsPerMinute)) WPM"
+                                    : "Warming up…"
+                            )
+                        }
                     }
                 }
             }

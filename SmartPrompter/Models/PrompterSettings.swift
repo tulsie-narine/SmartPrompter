@@ -9,6 +9,7 @@ final class PrompterSettings {
     var scrollSpeed: Double
     var margins: Double
     var mirrorMode: Bool
+    var flipMode: Bool
     var showMarker: Bool
     var smartVoiceScroll: Bool
     var fontColorHex: String
@@ -19,6 +20,7 @@ final class PrompterSettings {
         scrollSpeed: Double = 34,
         margins: Double = 40,
         mirrorMode: Bool = false,
+        flipMode: Bool = false,
         showMarker: Bool = true,
         smartVoiceScroll: Bool = false,
         fontColorHex: String = "#F8F8F8",
@@ -28,6 +30,7 @@ final class PrompterSettings {
         self.scrollSpeed = scrollSpeed
         self.margins = margins
         self.mirrorMode = mirrorMode
+        self.flipMode = flipMode
         self.showMarker = showMarker
         self.smartVoiceScroll = smartVoiceScroll
         self.fontColorHex = fontColorHex
