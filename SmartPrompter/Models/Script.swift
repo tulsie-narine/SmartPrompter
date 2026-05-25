@@ -45,7 +45,7 @@ extension Script {
             Script(
                 title: "Welcome Read",
                 body: """
-                Welcome to SmartPrompter.
+                Welcome to SmartCue.
 
                 This sample script is here so you can open the teleprompter immediately, tune the reading size, adjust the scroll speed, and see how the display feels in portrait or landscape.
 

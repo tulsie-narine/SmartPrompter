@@ -2,7 +2,7 @@ import SwiftData
 import SwiftUI
 
 @main
-struct SmartPrompterApp: App {
+struct SmartCueApp: App {
     private let modelContainer: ModelContainer = {
         let schema = Schema([
             Script.self,
@@ -17,7 +17,7 @@ struct SmartPrompterApp: App {
         do {
             return try ModelContainer(for: schema, configurations: [configuration])
         } catch {
-            fatalError("Could not create SmartPrompter model container: \(error)")
+            fatalError("Could not create SmartCue model container: \(error)")
         }
     }()
 

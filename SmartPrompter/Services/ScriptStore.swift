@@ -49,7 +49,7 @@ enum ScriptStore {
         do {
             try modelContext.save()
         } catch {
-            assertionFailure("Failed to save SmartPrompter data: \(error)")
+            assertionFailure("Failed to save SmartCue data: \(error)")
         }
     }
 }

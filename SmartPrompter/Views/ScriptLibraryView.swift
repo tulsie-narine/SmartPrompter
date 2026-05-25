@@ -41,7 +41,7 @@ struct ScriptLibraryView: View {
                     .listStyle(.plain)
                 }
             }
-            .navigationTitle("SmartPrompter")
+            .navigationTitle("SmartCue")
             .searchable(text: $searchText, prompt: "Search scripts")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
