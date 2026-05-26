@@ -37,6 +37,8 @@ struct TeleprompterView: View {
             .task {
                 ScriptStore.markUsed(script, in: modelContext)
                 lastTick = Date()
+                // Keep the screen on while the teleprompter is open
+                UIApplication.shared.isIdleTimerDisabled = true
                 // Give the controller the script text for word-level matching
                 speechScrollController.setScript(script.body)
                 // Re-activate smart voice scroll if it was left on when last closed
@@ -46,6 +48,8 @@ struct TeleprompterView: View {
                 }
             }
             .onDisappear {
+                // Restore normal screen timeout when leaving the teleprompter
+                UIApplication.shared.isIdleTimerDisabled = false
                 speechScrollController.stopListening()
             }
             .onReceive(timer) { tick in
