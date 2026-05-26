@@ -10,8 +10,14 @@ struct TeleprompterView: View {
 
     @State private var isPlaying = false
     @State private var scrollOffset: CGFloat = 0
+    @State private var textContentHeight: CGFloat = 0
     @State private var lastTick = Date()
     @State private var showingSettings = false
+
+    private struct TextHeightKey: PreferenceKey {
+        static let defaultValue: CGFloat = 0
+        static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+    }
 
     private let timer = Timer.publish(every: 1.0 / 60.0, on: .main, in: .common).autoconnect()
 
@@ -62,6 +68,9 @@ struct TeleprompterView: View {
                 )
                 .presentationDetents([.medium, .large])
             }
+            .onChange(of: settings.flipMode) { _, _ in
+                resetScroll()
+            }
         }
     }
 
@@ -77,13 +86,17 @@ struct TeleprompterView: View {
                 .padding(.horizontal, settings.margins)
                 .padding(.vertical, geometry.size.height * 0.42)
                 .frame(maxWidth: .infinity)
+                .background(GeometryReader { geo in
+                    Color.clear.preference(key: TextHeightKey.self, value: geo.size.height)
+                })
                 .scaleEffect(x: settings.mirrorMode ? -1 : 1, y: settings.flipMode ? -1 : 1)
-                .offset(y: -scrollOffset)
+                .offset(y: flipAwareOffset(containerHeight: geometry.size.height))
                 .animation(.smooth(duration: 0.2), value: settings.mirrorMode)
                 .animation(.smooth(duration: 0.2), value: settings.flipMode)
         }
         .scrollDisabled(true)
         .allowsHitTesting(false)
+        .onPreferenceChange(TextHeightKey.self) { textContentHeight = $0 }
     }
 
     /// Builds the script body as an AttributedString.
@@ -214,6 +227,19 @@ struct TeleprompterView: View {
     }
 
     // MARK: - Scroll logic
+
+    /// Returns the correct vertical offset for the text body, accounting for flip mode.
+    /// When flipped, we start at the bottom of the content (visually Line 1) and scroll upward.
+    private func flipAwareOffset(containerHeight: CGFloat) -> CGFloat {
+        if settings.flipMode {
+            // textContentHeight includes the vertical padding (0.42 * containerHeight on each side),
+            // so the actual text body height without that padding is approximately:
+            let textBodyHeight = textContentHeight - containerHeight * 0.84
+            // Start fully scrolled to show Line 1 at the reading position, then scroll upward
+            return -(max(textBodyHeight, 0)) + scrollOffset
+        }
+        return -scrollOffset
+    }
 
     private func togglePlayback() {
         isPlaying.toggle()
