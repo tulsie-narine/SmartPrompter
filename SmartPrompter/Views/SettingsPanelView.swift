@@ -82,10 +82,10 @@ struct SettingsPanelView: View {
 
                         if speechScrollController.isListening {
                             LabeledContent(
-                                "Scroll Speed",
-                                value: speechScrollController.scrollSpeedMultiplier > 0.02
+                                "Voice Activity",
+                                value: speechScrollController.scrollSpeedMultiplier > 0.05
                                     ? String(format: "%.0f%%", speechScrollController.scrollSpeedMultiplier * 100)
-                                    : "Paused — waiting for speech"
+                                    : "Waiting for speech…"
                             )
                         }
                     }
