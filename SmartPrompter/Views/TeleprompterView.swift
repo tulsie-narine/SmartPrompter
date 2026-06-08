@@ -13,6 +13,8 @@ struct TeleprompterView: View {
     @State private var textContentHeight: CGFloat = 0
     @State private var lastTick = Date()
     @State private var showingSettings = false
+    @State private var controlsVisible = true
+    @State private var hideTask: Task<Void, Never>? = nil
 
     private struct TextHeightKey: PreferenceKey {
         static let defaultValue: CGFloat = 0
@@ -38,6 +40,13 @@ struct TeleprompterView: View {
                 }
 
                 controls
+                    .opacity(controlsVisible ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.35), value: controlsVisible)
+                    .allowsHitTesting(controlsVisible)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                showControls()
             }
             .statusBarHidden(true)
             .task {
@@ -70,6 +79,14 @@ struct TeleprompterView: View {
             }
             .onChange(of: settings.flipMode) { _, _ in
                 resetScroll()
+            }
+            .onChange(of: isPlaying) { _, playing in
+                if playing {
+                    scheduleHide()
+                } else {
+                    cancelHide()
+                    showControls()
+                }
             }
         }
     }
@@ -239,6 +256,35 @@ struct TeleprompterView: View {
             return -(max(textBodyHeight, 0)) + scrollOffset
         }
         return -scrollOffset
+    }
+
+    // MARK: - Controls visibility
+
+    /// Show controls and restart the 5-second hide countdown (only while playing).
+    private func showControls() {
+        withAnimation(.easeInOut(duration: 0.35)) {
+            controlsVisible = true
+        }
+        if isPlaying { scheduleHide() }
+    }
+
+    /// Cancel any pending hide, then queue a new one to fire after 5 seconds.
+    private func scheduleHide() {
+        hideTask?.cancel()
+        hideTask = Task {
+            try? await Task.sleep(for: .seconds(5))
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.35)) {
+                    controlsVisible = false
+                }
+            }
+        }
+    }
+
+    private func cancelHide() {
+        hideTask?.cancel()
+        hideTask = nil
     }
 
     private func togglePlayback() {
