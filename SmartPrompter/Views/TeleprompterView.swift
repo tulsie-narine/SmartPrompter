@@ -15,6 +15,7 @@ struct TeleprompterView: View {
     @State private var showingSettings = false
     @State private var controlsVisible = true
     @State private var hideTask: Task<Void, Never>? = nil
+    @State private var dragStartOffset: CGFloat = 0
 
     private struct TextHeightKey: PreferenceKey {
         static let defaultValue: CGFloat = 0
@@ -48,6 +49,21 @@ struct TeleprompterView: View {
             .onTapGesture {
                 showControls()
             }
+            .gesture(
+                DragGesture(minimumDistance: 8)
+                    .onChanged { value in
+                        // Show controls so user can see the pause/play state while scrubbing
+                        showControls()
+                        // Drag up (negative translation) = advance; drag down = go back.
+                        // Clamp at 0 so you can't scroll before the start of the script.
+                        scrollOffset = max(0, dragStartOffset - value.translation.height)
+                    }
+                    .onEnded { _ in
+                        dragStartOffset = scrollOffset
+                        // Reset the tick timer so auto-scroll doesn't jump after repositioning
+                        lastTick = Date()
+                    }
+            )
             .statusBarHidden(true)
             .task {
                 ScriptStore.markUsed(script, in: modelContext)
@@ -294,6 +310,7 @@ struct TeleprompterView: View {
 
     private func resetScroll() {
         isPlaying = false
+        dragStartOffset = 0
         withAnimation(.smooth(duration: 0.25)) {
             scrollOffset = 0
         }
